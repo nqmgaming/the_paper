@@ -8,14 +8,13 @@ import android.app.AlertDialog;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -71,8 +70,8 @@ public class HomeActivity extends AppCompatActivity {
             if (dataReceived != null) {
                 Common.showRatingDialog(HomeActivity.this, dataReceived.get(Common.RATING_STATE_KEY),
                         dataReceived.get(Common.RATING_SALON_ID),
-                                dataReceived.get(Common.RATING_SALON_NAME),
-                                        dataReceived.get(Common.RATING_BARBER_ID));
+                        dataReceived.get(Common.RATING_SALON_NAME),
+                        dataReceived.get(Common.RATING_BARBER_ID));
             }
         }
     }
@@ -93,11 +92,11 @@ public class HomeActivity extends AppCompatActivity {
 
         mSavedInstanceState = savedInstanceState;
 
-        binding.bottomNavigation.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener()
-        {
+        binding.bottomNavigation.setOnNavigationItemSelectedListener(new BottomNavigationView.OnNavigationItemSelectedListener() {
             Fragment fragment = null;
+
             @Override
-            public boolean onNavigationItemSelected (@NonNull MenuItem menuItem){
+            public boolean onNavigationItemSelected(@NonNull MenuItem menuItem) {
                 if (menuItem.getItemId() == R.id.action_home) {
                     fragment = new HomeFragment();
 
@@ -127,7 +126,7 @@ public class HomeActivity extends AppCompatActivity {
             boolean isLogin = getIntent().getBooleanExtra(Common.IS_LOGIN, false);
             if (isLogin) {
                 alertDialog.show();
-               final FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+                final FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
                 Paper.init(HomeActivity.this);
                 Paper.book().write(Common.LOGGED_KEY, user.getPhoneNumber());
 
@@ -156,17 +155,16 @@ public class HomeActivity extends AppCompatActivity {
             }
         }
 
-}
+    }
 
     private boolean loadFragment(Fragment fragment) {
-        if (fragment != null ) {
-           getSupportFragmentManager().beginTransaction().replace(R.id.fg_container, fragment)
+        if (fragment != null) {
+            getSupportFragmentManager().beginTransaction().replace(R.id.fg_container, fragment)
                     .commitAllowingStateLoss();
             return true;
         }
         return false;
     }
-
 
 
     private void showUpdateDialog(final String phoneNumber) {
@@ -181,9 +179,12 @@ public class HomeActivity extends AppCompatActivity {
         Button btnUpdate = sheetView.findViewById(R.id.btn_update);
         final TextInputEditText edtName = sheetView.findViewById(R.id.edt_name);
         final TextInputEditText edtAddress = sheetView.findViewById(R.id.edt_address);
-        final TextInputEditText edtPhone = sheetView.findViewById(R.id.edt_user_phone);
+        final TextInputEditText edtPhone = sheetView.findViewById(R.id.edt_phone);
 
-        edtPhone.setText(phoneNumber);
+        if (phoneNumber != null && !phoneNumber.isEmpty()) {
+            edtPhone.setText(phoneNumber);
+        }
+
 
         btnUpdate.setOnClickListener(v -> {
             if (!alertDialog.isShowing())
@@ -194,27 +195,21 @@ public class HomeActivity extends AppCompatActivity {
 
             userRef.document(phoneNumber)
                     .set(user)
-                    .addOnSuccessListener(new OnSuccessListener<Void>() {
-                        @Override
-                        public void onSuccess(Void aVoid) {
-                            bottomSheetDialog.dismiss();
-                            if (alertDialog.isShowing())
-                                alertDialog.dismiss();
-                            //Update
-                            Common.currentUser = user;
-                            binding.bottomNavigation.setSelectedItemId(R.id.action_home);
+                    .addOnSuccessListener(aVoid -> {
+                        bottomSheetDialog.dismiss();
+                        if (alertDialog.isShowing())
+                            alertDialog.dismiss();
+                        //Update
+                        Common.currentUser = user;
+                        binding.bottomNavigation.setSelectedItemId(R.id.action_home);
 
-                            Toast.makeText(HomeActivity.this, "Thank you", Toast.LENGTH_SHORT).show();
-                        }
-                    }).addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    bottomSheetDialog.dismiss();
-                    if (alertDialog.isShowing())
-                        alertDialog.dismiss();
-                    Toast.makeText(HomeActivity.this, "" + e.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-            });
+                        Toast.makeText(HomeActivity.this, "Thank you", Toast.LENGTH_SHORT).show();
+                    }).addOnFailureListener(e -> {
+                        bottomSheetDialog.dismiss();
+                        if (alertDialog.isShowing())
+                            alertDialog.dismiss();
+                        Log.e("ERROR", e.getMessage());
+                    });
         });
 
         bottomSheetDialog.setContentView(sheetView);

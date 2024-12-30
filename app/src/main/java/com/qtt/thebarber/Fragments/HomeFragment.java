@@ -2,12 +2,10 @@ package com.qtt.thebarber.Fragments;
 
 
 import android.app.AlertDialog;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -20,10 +18,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
 
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -44,7 +38,6 @@ import com.qtt.thebarber.Common.Common;
 import com.qtt.thebarber.Database.CartDataSource;
 import com.qtt.thebarber.Database.CartDatabase;
 import com.qtt.thebarber.Database.LocalCartDataSource;
-import com.qtt.thebarber.EventBus.ClearCartEvent;
 import com.qtt.thebarber.HistoryActivity;
 import com.qtt.thebarber.Interface.IBannerLoadListener;
 import com.qtt.thebarber.Interface.IBookingInfoChangeListener;
@@ -56,10 +49,6 @@ import com.qtt.thebarber.Model.BookingInformation;
 import com.qtt.thebarber.Model.LookBook;
 import com.qtt.thebarber.NotificationActivity;
 import com.qtt.thebarber.Service.PicassoImageLoadingService;
-
-import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-import org.greenrobot.eventbus.ThreadMode;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -101,25 +90,20 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
                 .whereGreaterThanOrEqualTo("timestamp", todayTimeStamp)
                 .whereEqualTo("done", false)
                 .get()
-                .addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-                    @Override
-                    public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                        if (task.isSuccessful()) {
-                            if (task.getResult().size() > 0) {
-                                Toast.makeText(getActivity(), "You have booked before!", Toast.LENGTH_SHORT).show();
-                            } else {
-                                //not booked before
-                                startActivity(new Intent(getActivity(), BookingActivity.class));
-                            }
+                .addOnCompleteListener(task -> {
+                    if (task.isSuccessful()) {
+                        if (!task.getResult().isEmpty()) {
+                            Toast.makeText(getActivity(), "You have booked before!", Toast.LENGTH_SHORT).show();
+                        } else {
+                            //not booked before
+                            startActivity(new Intent(getActivity(), BookingActivity.class));
                         }
-                        
                     }
-                }).addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                startActivity(new Intent(getActivity(), BookingActivity.class));
-            }
-        });
+
+                })
+                .addOnFailureListener(e ->
+                        Log.d("HOME_FRAGMENT", "booking: " + e.getMessage())
+                );
 
     }
 
@@ -142,17 +126,7 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
                 .setCancelable(false)
                 .setTitle("CAUTION")
                 .setMessage("If you change booking information, you will delete your old booking\nLet's confirm!")
-                .setNegativeButton("CANCEL", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
-                    }
-                }).setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        deleteBookingFromBarber(true);
-                    }
-                });
+                .setNegativeButton("CANCEL", (dialog, which) -> dialog.dismiss()).setPositiveButton("OK", (dialog, which) -> deleteBookingFromBarber(true));
 
         alertDialog.show();
     }
@@ -180,27 +154,19 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
                     .document(String.valueOf(Common.currentBookingInfo.getTimeSlot()));
 
             barberBookingRef.delete()
-                    .addOnSuccessListener(new OnSuccessListener<Void>() {
-                        @Override
-                        public void onSuccess(Void aVoid) {
-                            //continue delete from user booking
-                            deleteBookingFromUser(isChange);
-                        }
-                    }).addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    if (dialog.isShowing())
-                        dialog.dismiss();
-                    Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-            });
+                    .addOnSuccessListener(aVoid -> {
+                        //continue delete from user booking
+                        deleteBookingFromUser(isChange);
+                    }).addOnFailureListener(e -> {
+                        if (dialog.isShowing())
+                            dialog.dismiss();
+                       Log.d("HOME_FRAGMENT", "deleteBookingFromBarber: " + e.getMessage());
+                    });
 
         } else {
             Toast.makeText(getActivity(), "Current booking must not be empty!", Toast.LENGTH_SHORT).show();
         }
     }
-
-
 
 
     private void deleteBookingFromUser(final boolean isChange) {
@@ -212,37 +178,31 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
                     .collection("Booking")
                     .document(Common.currentBookingId);
             documentReference.delete()
-                    .addOnSuccessListener(new OnSuccessListener<Void>() {
-                        @Override
-                        public void onSuccess(Void aVoid) {
-                            //delete from calendar
-                            Paper.init(getContext());
-                            if (Paper.book().read(Common.EVENT_URI_SAVE).toString() != null) {
-                                Uri eventUri = null;
-                                String eventString = Paper.book().read(Common.EVENT_URI_SAVE).toString();
+                    .addOnSuccessListener(aVoid -> {
+                        //delete from calendar
+                        Paper.init(getContext());
+                        if (Paper.book().read(Common.EVENT_URI_SAVE).toString() != null) {
+                            Uri eventUri = null;
+                            String eventString = Paper.book().read(Common.EVENT_URI_SAVE).toString();
 
-                                if (eventString != null && !TextUtils.isEmpty(eventString)) {
-                                    eventUri = Uri.parse(eventString);
-                                }
-                                if (eventUri != null)
-                                    getActivity().getContentResolver().delete(eventUri, null, null);
+                            if (eventString != null && !TextUtils.isEmpty(eventString)) {
+                                eventUri = Uri.parse(eventString);
                             }
-
-                            Toast.makeText(getContext(), "Deleting booking successfully!", Toast.LENGTH_SHORT).show();
-
-                            //refresh
-                            loadUserBooking();
-                            if (isChange) {
-                                iBookingInfoChangeListener.onBookingInfoChange();
-                            }
-
+                            if (eventUri != null)
+                                getActivity().getContentResolver().delete(eventUri, null, null);
                         }
-                    }).addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
-                }
-            });
+
+                        Toast.makeText(getContext(), "Deleting booking successfully!", Toast.LENGTH_SHORT).show();
+
+                        //refresh
+                        loadUserBooking();
+                        if (isChange) {
+                            iBookingInfoChangeListener.onBookingInfoChange();
+                        }
+
+                    }).addOnFailureListener(e ->
+                            Log.d("HOME_FRAGMENT", "deleteBookingFromUser: " + e.getMessage())
+                    );
         } else {
             Toast.makeText(getActivity(), "Booking information must not be null!", Toast.LENGTH_SHORT).show();
             Log.d("HOME_FRAGMENT", "deleteBookingFromUser: Id is null");
@@ -338,7 +298,9 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
                         iNotificationCountListener.onNotificationCountSuccess(task.getResult().size());
                     }
                 })
-                .addOnFailureListener(e -> Toast.makeText(getActivity(), e.getMessage(), Toast.LENGTH_SHORT).show());
+                .addOnFailureListener(e ->
+                        Log.d("HOME_FRAGMENT", "loadNotification: " + e.getMessage())
+                );
     }
 
     private void initRealtimeUserBooking() {
@@ -377,7 +339,7 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
                     @Override
                     public void onError(@io.reactivex.annotations.NonNull Throwable e) {
                         if (!e.getMessage().contains("empty")) {
-                            Toast.makeText(getContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+                            Log.d("HOME_FRAGMENT", "countCartItem: " + e.getMessage());
                         } else {
                             binding.notificationBadge.setVisibility(View.GONE);
                         }
@@ -393,7 +355,6 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
         loadNotification();
         countCartItem();
     }
-
 
 
     private void loadUserBooking() {
@@ -432,7 +393,7 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
         //Listen real time
         if (userBookingEvent != null) {
             if (userBookingListener == null)
-             userBookingListener = bookingRef.addSnapshotListener(userBookingEvent);
+                userBookingListener = bookingRef.addSnapshotListener(userBookingEvent);
         }
     }
 
@@ -469,7 +430,7 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
 
     private void setUserInformation() {
         //binding.llUserInfo.setVisibility(View.VISIBLE);
-        binding.tvUserName.setText(new StringBuilder("Hi! ").append(Common.currentUser.getName()).toString());
+        binding.tvUserName.setText("Hi! " + Common.currentUser.getName());
     }
 
     @Override
@@ -480,7 +441,7 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
 
     @Override
     public void onBannerLoadFailed(String message) {
-        Toast.makeText(getActivity(), message, Toast.LENGTH_SHORT).show();
+        Log.d("HOME_FRAGMENT", "onBannerLoadFailed: " + message);
     }
 
     @Override
@@ -492,7 +453,7 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
 
     @Override
     public void onLookBookLoadFailed(String message) {
-        Toast.makeText(getActivity(), message, Toast.LENGTH_SHORT).show();
+       Log.d("HOME_FRAGMENT", "onLookBookLoadFailed: " + message);
     }
 
     @Override
@@ -542,7 +503,7 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
 
     @Override
     public void onBookingInfoLoadFail(String message) {
-        Toast.makeText(getActivity(), message, Toast.LENGTH_SHORT).show();
+        Log.d("HOME_FRAGMENT", "onBookingInfoLoadFail: " + message);
     }
 
     @Override
@@ -581,7 +542,6 @@ public class HomeFragment extends Fragment implements IBannerLoadListener, ILook
     public void onStop() {
         super.onStop();
     }
-
 
 
 }

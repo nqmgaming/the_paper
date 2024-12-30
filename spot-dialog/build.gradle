@@ -1,0 +1,61 @@
+apply plugin: 'com.android.application'
+
+repositories {
+    google()
+    jcenter()
+    maven {
+        url "https://dl.bintray.com/d-max/spots-dialog"
+    }
+}
+
+android {
+    compileSdkVersion 28
+
+    defaultConfig {
+        minSdkVersion 19
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+    }
+    flavorDimensions "minApi"
+
+    productFlavors {
+        lollipop {
+            minSdkVersion 21
+            versionCode 1
+            dimension "minApi"
+        }
+        kitkat {
+            minSdkVersion 15
+            versionCode 1
+            dimension "minApi"
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_6
+        targetCompatibility JavaVersion.VERSION_1_6
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+
+    lintOptions {
+        abortOnError false
+        xmlReport false
+        htmlReport true
+        checkReleaseBuilds true
+    }
+}
+
+dependencies {
+    implementation project(':library')
+    implementation project(':spot-dialog')
+}

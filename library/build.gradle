@@ -1,0 +1,30 @@
+apply plugin: 'com.android.library'
+
+repositories {
+    google()
+    jcenter()
+}
+
+dependencies {
+    implementation 'com.android.support:support-annotations:27.1.1'
+}
+
+android {
+
+    compileSdkVersion 28
+
+    defaultConfig {
+        minSdkVersion 19
+        targetSdkVersion 28
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}

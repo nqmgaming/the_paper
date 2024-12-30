@@ -69,7 +69,7 @@ public class ProfileFragment extends Fragment {
             binding.imgUserAvatar.setImageDrawable(getContext().getResources().getDrawable(R.drawable.user_avatar));
         } else {
             Log.d("Update_profile", "onResume: fragment profile " + Common.currentUser.getAvatar());
-          Picasso.get().load(Common.currentUser.getAvatar()).error(R.drawable.user_avatar).into(binding.imgUserAvatar);
+            Picasso.get().load(Common.currentUser.getAvatar()).error(R.drawable.user_avatar).into(binding.imgUserAvatar);
         }
 
         binding.tvUserName.setText(Common.currentUser.getName());
@@ -81,10 +81,14 @@ public class ProfileFragment extends Fragment {
     private void initView() {
         dialog = new SpotsDialog.Builder().setContext(getContext()).setCancelable(false).build();
 
-        if (Common.currentUser.getAvatar().isEmpty()) {
+        try {
+            if (Common.currentUser.getAvatar().isEmpty() && Common.currentUser.getAvatar() == null) {
+                binding.imgUserAvatar.setImageDrawable(getContext().getResources().getDrawable(R.drawable.user_avatar));
+            } else {
+                Picasso.get().load(Common.currentUser.getAvatar()).error(R.drawable.user_avatar).into(binding.imgUserAvatar);
+            }
+        } catch (Exception e) {
             binding.imgUserAvatar.setImageDrawable(getContext().getResources().getDrawable(R.drawable.user_avatar));
-        } else {
-            Picasso.get().load(Common.currentUser.getAvatar()).error(R.drawable.user_avatar).into(binding.imgUserAvatar);
         }
 
         binding.tvUserName.setText(Common.currentUser.getName());
@@ -127,7 +131,7 @@ public class ProfileFragment extends Fragment {
     }
 
     void logOut() {
-        AlertDialog.Builder builder  = new AlertDialog.Builder(getContext());
+        AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
         builder.setTitle("Sign out")
                 .setMessage("Do you want really sign out?")
                 .setNegativeButton("Cancel", (dialoginterface, i) -> {
